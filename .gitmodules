@@ -1,0 +1,25 @@
+[submodule "vendor/entt"]
+	path = vendor/entt
+	url = https://github.com/skypjack/entt
+[submodule "vendor/glad"]
+	path = vendor/glad
+	url = https://github.com/premake-libs/glad
+[submodule "vendor/glfw"]
+	path = vendor/glfw
+	url = https://github.com/glfw/glfw
+[submodule "vendor/spdlog"]
+	path = vendor/spdlog
+	url = https://github.com/gabime/spdlog
+[submodule "vendor/glm"]
+	path = vendor/glm
+	url = https://github.com/g-truc/glm
+[submodule "vendor/stb"]
+	path = vendor/stb
+	url = https://github.com/nothings/stb
+[submodule "vendor/imgui"]
+	path = vendor/imgui
+	url = https://github.com/ocornut/imgui
+	branch = docking
+[submodule "vendor/json"]
+	path = vendor/json
+	url = https://github.com/nlohmann/json

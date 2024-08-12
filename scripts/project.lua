@@ -7,14 +7,14 @@ function create_project(project_name, project_kind)
         targetdir(binaries_path .. "/%{prj.name}")
         objdir(intermediate_path .. "/%{prj.name}")
 
-        pchheader "pch.h"
+        pchheader "pch.hpp"
         pchsource "src/pch.cpp"
 
         files {
-            "src/*.cpp",
-            "src/*.hpp",
-            "src/*.c",
-            "src/*.h",
+            "src/**.cpp",
+            "src/**.hpp",
+            "src/**.c",
+            "src/**.h",
         }
     
         includedirs {
@@ -35,5 +35,8 @@ function create_project(project_name, project_kind)
         filter { }
 
 		-- Platform 
-		detect_platform()		
+		detect_platform()
+
+		-- Vendor
+		setup_vendors()
 end

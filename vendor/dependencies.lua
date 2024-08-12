@@ -1,11 +1,24 @@
 vendor_include_dirs = { }
-vendor_include_dirs["example_vendor"]             = "%{vendor_path}/example_vendor/include"
+vendor_include_dirs["entt"]             = "%{vendor_path}/entt/single_include"
+vendor_include_dirs["glad"]             = "%{vendor_path}/glad/include"
+vendor_include_dirs["glfw"]             = "%{vendor_path}/glfw/include"
+vendor_include_dirs["glm"]              = "%{vendor_path}/glm"
+vendor_include_dirs["imgui"]            = "%{vendor_path}/imgui"
+vendor_include_dirs["imgui-glfw"]       = "%{vendor_path}/imgui/backends"
+vendor_include_dirs["imgui-opengl"]     = "%{vendor_path}/imgui/backends"
+vendor_include_dirs["spdlog"]           = "%{vendor_path}/spdlog/include"
+vendor_include_dirs["nlohmann"]         = "%{vendor_path}/json/single_include"
+vendor_include_dirs["stb"]         		= "%{vendor_path}/stb"
 
 vendor_links = {}
-vendor_links[0] = "example_vendor"
+vendor_links[0] = "glad"
+vendor_links[1] = "glfw"
+vendor_links[2] = "imgui"
+vendor_links[3] = "imgui-glfw"
+vendor_links[4] = "imgui-opengl"
 
 vendor_defines = {}
-vendor_defines[0] = "EXAMPLE_DEFINE"
+vendor_defines[0] = "GLFW_INCLUDE_NONE"
 
 function set_vendor_include_dirs()
     for vendor_names, vendor_paths in pairs(vendor_include_dirs) do
