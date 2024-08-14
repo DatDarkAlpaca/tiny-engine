@@ -4,12 +4,12 @@
 
 namespace tiny
 {
-	AssetLibrary& View::AssetLibrary() const
+	AssetLibrary& View::assetLibrary() const
 	{
 		return application->getAssetLibrary();
 	}
 
-	WorkerPool& View::WorkerPool() const
+	WorkerPool& View::workerPool() const
 	{
 		return application->getWorkerPool();
 	}

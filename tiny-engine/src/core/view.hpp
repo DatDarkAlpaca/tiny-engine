@@ -38,9 +38,9 @@ namespace tiny
 		void setViewSystem(ViewSystem* viewSystem) { this->viewSystem = viewSystem; }
 
 	public:
-		AssetLibrary& AssetLibrary() const;
+		AssetLibrary& assetLibrary() const;
 
-		WorkerPool& WorkerPool() const;
+		WorkerPool& workerPool() const;
 
 	protected:
 		TinyApplication* application = nullptr;

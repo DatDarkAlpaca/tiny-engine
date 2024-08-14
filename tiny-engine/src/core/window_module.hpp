@@ -614,7 +614,7 @@ namespace tiny
 		} m_WindowData;
 	};
 
-	void setupWindowing(WindowModule& windowModule, const WindowProperties& properties)
+	inline void setupWindowing(WindowModule& windowModule, const WindowProperties& properties)
 	{
 		if (!glfwInit())
 			TINY_LOG_CRITICAL("Failed to initialize GLFW");

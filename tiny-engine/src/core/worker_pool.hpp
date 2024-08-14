@@ -50,7 +50,7 @@ namespace tiny
 			{
 				std::unique_lock<std::mutex> lock(m_TaskQueueMutex);
 				if (m_StopExecution)
-					TUR_LOG_CRITICAL("[WorkerPool]: The worker pool has stopped suddenly.");
+					TINY_LOG_CRITICAL("[WorkerPool]: The worker pool has stopped suddenly.");
 
 				m_Tasks.emplace([task, callback, this]()
 					{
