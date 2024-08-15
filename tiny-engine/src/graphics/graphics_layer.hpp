@@ -8,6 +8,7 @@
 #include "graphics.hpp"
 #include "utils/file.hpp"
 
+#include "handle.hpp"
 #include "shader.hpp"
 #include "buffer.hpp"
 #include "pipeline.hpp"
@@ -16,15 +17,14 @@
 
 namespace tiny
 {
-	using index_buffer_handle = uint32_t;
-	using renderpass_handle = uint32_t;
-
 	struct GraphicsLayer
 	{
 	public:
 		GraphicsLayer()
 		{
-			glGenVertexArrays(1, &m_VAO);
+			unsigned int vao;
+			glGenVertexArrays(1, &vao);
+			glBindVertexArray(vao);
 		}
 
 	public:
@@ -42,9 +42,8 @@ namespace tiny
 			glClearColor(color.r, color.b, color.g, color.a);
 		}
 
-		void begin()
+		void clear()
 		{
-			glBindVertexArray(m_VAO);
 			glClear(GL_COLOR_BUFFER_BIT);
 		}
 
@@ -53,16 +52,10 @@ namespace tiny
 			auto descriptor = m_PipelineStates[m_BoundPipeline];
 			glDrawArrays(getTopologyGL(descriptor.primitiveTopology), first, count);
 		}
-
 		void drawElements(uint32_t count)
 		{
 			auto descriptor = m_PipelineStates[m_BoundPipeline];
 			glDrawElements(getTopologyGL(descriptor.primitiveTopology), count, GL_UNSIGNED_INT, nullptr);
-		}
-
-		void end()
-		{
-			glBindVertexArray(0);
 		}
 
 	public:
@@ -105,9 +98,13 @@ namespace tiny
 		}
 		void bindPipeline(pipeline_handle handle)
 		{
+			if (m_BoundPipeline == handle)
+				return;
+
+			m_BoundPipeline = handle;
+
 			glUseProgram(m_Pipelines[handle]);
 			setupPipelineState(handle);
-			m_BoundPipeline = handle;
 		}
 
 		void setUniform(std::string_view uniformName, float value)
@@ -115,11 +112,15 @@ namespace tiny
 			auto location = glGetUniformLocation(m_Pipelines[m_BoundPipeline], uniformName.data());
 			glUniform1f(location, value);
 		}
-
 		void setUniform(std::string_view uniformName, int value)
 		{
 			auto location = glGetUniformLocation(m_Pipelines[m_BoundPipeline], uniformName.data());
 			glUniform1i(location, value);
+		}
+		void setUniform(std::string_view uniformName, const glm::mat4 value)
+		{
+			auto location = glGetUniformLocation(m_Pipelines[m_BoundPipeline], uniformName.data());
+			glUniformMatrix4fv(location, 1, false, glm::value_ptr(value));
 		}
 
 		buffer_handle createBuffer(BufferDescriptor descriptor)
@@ -129,8 +130,14 @@ namespace tiny
 			glBindBuffer(getBufferTypeGL(descriptor.type), buffer);
 			glBufferData(getBufferTypeGL(descriptor.type), descriptor.size, nullptr, descriptor.usage);
 
+			glBindBuffer(getBufferTypeGL(descriptor.type), 0);
+
 			m_Buffers.push_back(buffer);
 			return m_Buffers.size() - 1;
+		}
+		void unbindBuffer(BufferType type)
+		{
+			glBindBuffer(getBufferTypeGL(type), 0);
 		}
 		void bindBuffer(buffer_handle handle, BufferType type)
 		{
@@ -138,9 +145,38 @@ namespace tiny
 		}
 		void setBufferData(buffer_handle handle, BufferDescriptor descriptor, void* data)
 		{
+			bindBuffer(handle, descriptor.type);
+			
 			glBufferData(getBufferTypeGL(descriptor.type), descriptor.size, data, descriptor.usage);
+
+			unbindBuffer(descriptor.type);
 		}
 
+		texture_handle createTexture2DByteNull(uint32_t width, uint32_t height)
+		{
+			uint32_t textureID;
+			glGenTextures(1, &textureID);
+			glBindTexture(GL_TEXTURE_2D, textureID);
+			glTexImage2D(
+				GL_TEXTURE_2D,
+				0,
+				GL_RGB,
+				width,
+				height,
+				0,
+				GL_RGB,
+				GL_UNSIGNED_BYTE,
+				nullptr
+			);
+
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+			glBindTexture(GL_TEXTURE_2D, 0);
+
+			m_Texture.push_back(textureID);
+			return m_Texture.size() - 1;
+		}
 		texture_handle createTexture2DByte(AssetLibrary& assetLibrary, AssetHandle textureHandle, const TextureDescriptor& descriptor)
 		{
 			std::weak_ptr<TextureAsset> weakTextureData = assetLibrary.getTexture(textureHandle);
@@ -161,13 +197,15 @@ namespace tiny
 				textureData->buffer.data
 			);
 
-			// TODO: parameters
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, getTextureFilterGL(descriptor.minFilter));
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, getTextureFilterGL(descriptor.magFilter));
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, getTextureClampGL(descriptor.wrapS));
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, getTextureClampGL(descriptor.wrapT));
 
-			glGenerateMipmap(GL_TEXTURE_2D);
+			if (descriptor.generateBipmap)
+				glGenerateMipmap(GL_TEXTURE_2D);
+			
+			glBindTexture(GL_TEXTURE_2D, 0);
 
 			m_Texture.push_back(textureID);
 			return m_Texture.size() - 1;
@@ -184,9 +222,18 @@ namespace tiny
 			glGenFramebuffers(1, &framebuffer);
 			glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
 
-			/*if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
-				TINY_LOG_CRITICAL("FUCK FRAMEBUFFERS");*/
-			glBindFramebuffer(GL_FRAMEBUFFER, 0);
+			m_Framebuffers.push_back(framebuffer);
+			return m_Framebuffers.size() - 1;
+		}
+		void attachFramebufferDepthStencil(framebuffer_handle handle)
+		{
+			bindFramebuffer(handle);
+
+			unsigned int rbo;
+			glGenRenderbuffers(1, &rbo);
+			glBindRenderbuffer(GL_RENDERBUFFER, rbo);
+			glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, 800, 600);
+			glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, rbo);
 		}
 		void attachFramebufferColorTexture(framebuffer_handle handle, texture_handle textureHandle, uint32_t attachmentID = 0)
 		{
@@ -202,6 +249,10 @@ namespace tiny
 		void bindFramebuffer(framebuffer_handle handle)
 		{
 			glBindFramebuffer(GL_FRAMEBUFFER, m_Framebuffers[handle]);
+		}
+		void bindDefaultFramebuffer()
+		{
+			glBindFramebuffer(GL_FRAMEBUFFER, 0);
 		}
 
 	private:
@@ -229,21 +280,25 @@ namespace tiny
 				offset += element.dataAmount * getDataTypeSize(element.dataType);
 			}
 
+			// Rasterizer:
 			glFrontFace(getFrontFaceGL(descriptor.frontFace));
 			glPolygonMode(GL_FRONT_AND_BACK, getPolygonModeGL(descriptor.polygonMode));
 			glCullFace(getCullModeGL(descriptor.cullMode));
 		}
 
 	private:
-		std::vector<shader_handle> m_Shaders;
-		std::vector<pipeline_handle> m_Pipelines;
-		std::vector<buffer_handle> m_Buffers;
+		std::vector<uint32_t> m_Shaders;
+		std::vector<uint32_t> m_Buffers;
+
+		std::vector<uint32_t> m_Pipelines;
 		std::vector<PipelineDescriptor> m_PipelineStates;
-		std::vector<texture_handle> m_Texture;
-		std::vector<framebuffer_handle> m_Framebuffers;
+
+		std::vector<uint32_t> m_Texture;
+		std::vector<uint32_t> m_Framebuffers;
+		
+		std::vector<uint32_t> m_Renderpass;
 
 	private:
-		pipeline_handle m_BoundPipeline;
-		uint32_t m_VAO = 0;
+		pipeline_handle m_BoundPipeline = invalid_handle;
 	};
 }

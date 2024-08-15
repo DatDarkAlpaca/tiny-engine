@@ -19,7 +19,13 @@ public:
 		auto vertex = graphics.createShader({ "res/shader.vert", ShaderType::VERTEX });
 		auto fragment = graphics.createShader({ "res/shader.frag", ShaderType::FRAGMENT });
 
-		// - buffer:
+		auto invertVertex = graphics.createShader({ "res/invert.vert", ShaderType::VERTEX });
+		auto invertFragment = graphics.createShader({ "res/invert.frag", ShaderType::FRAGMENT });
+
+		auto grayscaleVertex = graphics.createShader({ "res/grayscale.vert", ShaderType::VERTEX });
+		auto grayscaleFragment = graphics.createShader({ "res/grayscale.frag", ShaderType::FRAGMENT });
+
+		// VBO:
 		{
 			std::vector<float> data = {
 				-0.5f, -0.5f, 0.0f, 0.0f, 0.0f,
@@ -37,6 +43,7 @@ public:
 			graphics.setBufferData(vbo, descriptor, data.data());
 		}
 
+		// EBO:
 		{
 			std::vector<unsigned int> data = {
 				0, 1, 2, 2, 3, 0
@@ -51,6 +58,28 @@ public:
 			graphics.setBufferData(ebo, descriptor, data.data());
 		}
 
+		// Screen VBO:
+		{
+			std::vector<float> data = {
+				-1.0f, -1.0f, 0.0f, 0.0f,
+				 1.0f, -1.0f, 1.0f, 0.0f,
+				 1.0f,  1.0f, 1.0f, 1.0f,
+
+				 1.0f,  1.0f, 1.0f, 1.0f,
+				-1.0f,  1.0f, 0.0f, 1.0f,
+				-1.0f, -1.0f, 0.0f, 0.0f,
+			};
+
+			BufferDescriptor descriptor;
+			descriptor.type = BufferType::ARRAY_BUFFER;
+			descriptor.usage = GL_STATIC_DRAW;
+			descriptor.size = sizeof(float) * data.size();
+
+			screenVBO = graphics.createBuffer(descriptor);
+			graphics.setBufferData(screenVBO, descriptor, data.data());
+		}
+
+		// Default Pipeline:
 		{
 			PipelineDescriptor pipelineDesc;
 
@@ -59,27 +88,119 @@ public:
 			pipelineDesc.shaderHandles.push_back(vertex);
 			pipelineDesc.shaderHandles.push_back(fragment);
 
-			pipeline = graphics.createPipeline(pipelineDesc);
+			colorPipeline = graphics.createPipeline(pipelineDesc);
+		}
+
+		// Invert Pipeline:
+		{
+			PipelineDescriptor pipelineDesc;
+
+			pipelineDesc.vertexLayout.add(VertexLayout::Element{ 0, 2, DataType::FLOAT });
+			pipelineDesc.vertexLayout.add(VertexLayout::Element{ 1, 2, DataType::FLOAT });
+			pipelineDesc.shaderHandles.push_back(invertVertex);
+			pipelineDesc.shaderHandles.push_back(invertFragment);
+
+			invertPipeline = graphics.createPipeline(pipelineDesc);
+		}
+
+		// Invert Pipeline:
+		{
+			PipelineDescriptor pipelineDesc;
+
+			pipelineDesc.vertexLayout.add(VertexLayout::Element{ 0, 2, DataType::FLOAT });
+			pipelineDesc.vertexLayout.add(VertexLayout::Element{ 1, 2, DataType::FLOAT });
+			pipelineDesc.shaderHandles.push_back(grayscaleVertex);
+			pipelineDesc.shaderHandles.push_back(grayscaleFragment);
+
+			grayscalePipeline = graphics.createPipeline(pipelineDesc);
 		}
 		
 		texture = graphics.createTexture2DByte(application->getAssetLibrary(), handle, {});
 
-		graphics.setClearColor({ 0.1f, 0.1f, 0.1f, 1.0f });
+		fboTexture = graphics.createTexture2DByteNull(640, 480);
+		fbo = graphics.createFramebuffer();
+		graphics.attachFramebufferColorTexture(fbo, fboTexture, 0);
+		graphics.attachFramebufferDepthStencil(fbo);
+		
+		graphics.setClearColor({ 0.5f, 0.5f, 0.5f, 1.0f });
 	}
 
 	void onRender() override
 	{
-		graphics.begin();
-		graphics.bindPipeline(pipeline);
-		graphics.bindBuffer(vbo, BufferType::ARRAY_BUFFER);
-		graphics.bindBuffer(ebo, BufferType::ELEMENT_ARRAY_BUFFER);
+		glm::mat4 model(1.0f);
+		model = glm::translate(model, glm::vec3(150.f, 150.f, 0.f));
+		model = glm::scale(model, glm::vec3(200.f, 200.f, 1.f));
 
-		graphics.setUniform("u_texture", 0);
-		graphics.bindTexture2D(texture);
+		glm::mat4 view(1.0f);
+		view = glm::lookAt(
+			glm::vec3(0.f, 0.f, 0.f), 
+			glm::vec3(0.f, 0.f, -1.f), 
+			glm::vec3(0.f, 1.f, 0.f)
+		);
 
-		graphics.drawElements(6);
+		glm::mat4 projection(1.0f);
+		projection = glm::ortho(0.f, 640.f, 480.f, 0.f, -1.f, 1.f);
 
-		graphics.end();
+		// Color pass:
+		{
+			graphics.setViewport(0, 0, 640, 480);
+			graphics.bindFramebuffer(fbo);
+			graphics.clear();
+
+			graphics.bindBuffer(vbo, BufferType::ARRAY_BUFFER);
+			graphics.bindBuffer(ebo, BufferType::ELEMENT_ARRAY_BUFFER);
+
+			{
+				graphics.bindPipeline(colorPipeline);
+
+				graphics.setUniform("u_texture", 0);
+				graphics.setUniform("u_model", model);
+				graphics.setUniform("u_view", view);
+				graphics.setUniform("u_projection", projection);
+
+				graphics.bindTexture2D(texture);
+
+				graphics.drawElements(6);
+			}
+		}
+
+		// Invert pass:
+		{
+			graphics.setViewport(0, 0, 640, 480);
+			graphics.bindDefaultFramebuffer();
+			graphics.clear();
+
+			graphics.bindBuffer(screenVBO, BufferType::ARRAY_BUFFER);
+
+			{
+				graphics.bindPipeline(invertPipeline);
+
+				graphics.setUniform("u_texture_screen", 0);
+
+				graphics.bindTexture2D(fboTexture);
+
+				graphics.draw(0, 6);
+			}
+		}
+
+		// Grayscale pass:
+		{
+			graphics.setViewport(0, 0, 640, 480);
+			graphics.bindDefaultFramebuffer();
+			graphics.clear();
+
+			graphics.bindBuffer(screenVBO, BufferType::ARRAY_BUFFER);
+
+			{
+				graphics.bindPipeline(grayscalePipeline);
+
+				graphics.setUniform("u_texture_screen", 0);
+
+				graphics.bindTexture2D(fboTexture);
+
+				graphics.draw(0, 6);
+			}		
+		}
 	}
 
 private:
@@ -88,9 +209,12 @@ private:
 private:
 	GraphicsLayer graphics;
 
-	buffer_handle vbo, ebo;
-	pipeline_handle pipeline;
-	texture_handle texture;
+	framebuffer_handle fbo;
+	buffer_handle vbo, ebo, screenVBO;
+	
+	pipeline_handle colorPipeline, invertPipeline, grayscalePipeline;
+
+	texture_handle texture, fboTexture;
 };
 
 class Testbed : public TinyApplication
