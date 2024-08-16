@@ -33,6 +33,8 @@ namespace tiny
 			case TextureFilter::NEAREST_MIPMAP_LINEAR: 
 				return GL_NEAREST_MIPMAP_LINEAR;
 		}
+
+		return NULL;
 	}
 
 	enum TextureClamp
@@ -63,6 +65,8 @@ namespace tiny
 			case TextureClamp::MIRROR_CLAMP_TO_EDGE:
 				return GL_MIRROR_CLAMP_TO_EDGE;
 		}
+
+		return NULL;
 	}
 
 	struct TextureDescriptor

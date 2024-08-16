@@ -25,12 +25,14 @@ namespace tiny
 			case BufferType::UNIFORM_BUFFER:
 				return GL_UNIFORM_BUFFER;
 		}
+
+		return NULL;
 	}
 
 	struct BufferDescriptor
 	{
-		BufferType type;
-		size_t size;
+		BufferType type = BufferType::ARRAY_BUFFER;
+		size_t size = 0;
 		size_t usage = GL_STATIC_DRAW;
 	};
 }

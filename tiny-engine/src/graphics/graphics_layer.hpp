@@ -103,7 +103,7 @@ namespace tiny
 			checkCompileErrors(shaderID, descriptor.type);
 
 			m_Shaders.push_back(shaderID);
-			return m_Shaders.size() - 1;
+			return shader_handle(m_Shaders.size() - 1);
 		}
 		void destroyShader(shader_handle handle)
 		{
@@ -127,7 +127,7 @@ namespace tiny
 			m_Pipelines.push_back(pipelineProgramID);
 			m_PipelineStates.push_back(descriptor);
 
-			return m_Pipelines.size() - 1;
+			return pipeline_handle(m_Pipelines.size() - 1);
 		}
 		void bindPipeline(pipeline_handle handle)
 		{
@@ -182,7 +182,7 @@ namespace tiny
 			glBindBuffer(getBufferTypeGL(descriptor.type), 0);
 
 			m_Buffers.push_back(buffer);
-			return m_Buffers.size() - 1;
+			return buffer_handle(m_Buffers.size() - 1);
 		}
 		void unbindBuffer(BufferType type)
 		{
@@ -227,7 +227,7 @@ namespace tiny
 			glBindTexture(GL_TEXTURE_2D, 0);
 
 			m_Texture.push_back(textureID);
-			return m_Texture.size() - 1;
+			return texture_handle(m_Texture.size() - 1);
 		}
 		texture_handle createTexture2DByte(AssetLibrary& assetLibrary, AssetHandle textureHandle, const TextureDescriptor& descriptor)
 		{
@@ -275,7 +275,7 @@ namespace tiny
 			glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
 
 			m_Framebuffers.push_back(framebuffer);
-			return m_Framebuffers.size() - 1;
+			return framebuffer_handle(m_Framebuffers.size() - 1);
 		}
 		void attachFramebufferDepthStencil(framebuffer_handle handle)
 		{
@@ -343,7 +343,7 @@ namespace tiny
 					element.dataAmount,
 					getDataTypeGL(element.dataType),
 					false,
-					strides[element.binding],
+					strides[static_cast<size_t>(element.binding)],
 					(void*)offsets[element.binding]
 				);
 

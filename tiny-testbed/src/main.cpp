@@ -11,6 +11,10 @@ public:
 public:
 	void onEngineStartup() override
 	{
+
+		int width, height;
+		glfwGetWindowSize(application->getWindowModule().getHandle(), &width, &height);
+
 		// Asset:
 		TextureAsset asset = TextureLoader::load("res/box.png");
 		AssetHandle handle = assetLibrary().insertTexture(asset);
@@ -28,10 +32,10 @@ public:
 		// VBO:
 		{
 			std::vector<float> data = {
-				-0.5f, -0.5f, 0.0f, 0.0f, 0.0f,
-				 0.5f, -0.5f, 0.0f, 1.0f, 0.0f,
-				 0.5f,  0.5f, 0.0f, 1.0f, 1.0f,
-				-0.5f,  0.5f, 0.0f, 0.0f, 1.0f,
+				-0.5f, -0.5f, 0.0f,		0.0f, 0.0f,
+				 0.5f, -0.5f, 0.0f,		1.0f, 0.0f,
+				 0.5f,  0.5f, 0.0f,		1.0f, 1.0f,
+				-0.5f,  0.5f, 0.0f,		0.0f, 1.0f,
 			};
 
 			BufferDescriptor descriptor;
@@ -46,8 +50,15 @@ public:
 		// Offset VBO:
 		{
 			std::vector<float> data = {
-				0.f,  0.f,
-				1.5f, 0.f
+				0.0f, 0.0f,
+				1.0f, 0.0f,
+				1.0f, 1.0f,
+				0.0f, 1.0f,
+				2.0f, 0.0f,
+				2.0f, 1.0f,
+				0.0f, 2.0f,
+				1.0f, 2.0f,
+				2.0f, 2.0f,
 			};
 
 			BufferDescriptor descriptor;
@@ -135,35 +146,39 @@ public:
 		
 		texture = graphics.createTexture2DByte(application->getAssetLibrary(), handle, {});
 
-		fboTexture = graphics.createTexture2DByteNull(640, 480);
+		fboTexture = graphics.createTexture2DByteNull(width, height);
 		fbo = graphics.createFramebuffer();
 		graphics.attachFramebufferColorTexture(fbo, fboTexture, 0);
 		graphics.attachFramebufferDepthStencil(fbo);
-		
-		graphics.setClearColor({ 0.5f, 0.5f, 0.5f, 1.0f });
 	}
 
 	void onRender() override
 	{
 		glm::mat4 model(1.0f);
-		model = glm::translate(model, glm::vec3(150.f, 150.f, 0.f));
-		model = glm::scale(model, glm::vec3(200.f, 200.f, 1.f));
+		size_t scale = 60;
+		model = glm::translate(model, glm::vec3(scale / 2.f, scale / 2.f, 0.f));
+		model = glm::scale(model, glm::vec3(scale, scale, 1.f));
 
+		glm::vec3 position = glm::vec3(0.f, 0.f, 0.f);
+		glm::vec3 target = glm::vec3(0.f, 0.f, -1.f);
 		glm::mat4 view(1.0f);
 		view = glm::lookAt(
-			glm::vec3(0.f, 0.f, 0.f), 
-			glm::vec3(0.f, 0.f, -1.f), 
-			glm::vec3(0.f, 1.f, 0.f)
+			position,
+			position + target,
+			glm::vec3(0.f, 1.f,  0.f)
 		);
 
+		int width, height;
+		glfwGetWindowSize(application->getWindowModule().getHandle(), &width, &height);
+
 		glm::mat4 projection(1.0f);
-		projection = glm::ortho(0.f, 640.f, 480.f, 0.f, -1.f, 1.f);
+		projection = glm::ortho(0.f, float(width), float(height), 0.f, -10.f, 10.f);
 
 		// Color pass:
 		graphics.begin();
 		{
-			graphics.setViewport(0, 0, 640, 480);
-			graphics.bindFramebuffer(fbo);
+			graphics.setViewport(0, 0, width, height);
+			graphics.bindDefaultFramebuffer();
 			graphics.clear();
 
 			// the order of binding matters.
@@ -182,10 +197,12 @@ public:
 
 				graphics.bindTexture2D(texture);
 
-				graphics.drawElementsInstanced(6, 2);
+				graphics.drawElementsInstanced(6, 9);
 			}
 		}
 		graphics.end();
+		
+		return;
 
 		// Invert pass:
 		graphics.begin();
@@ -211,7 +228,7 @@ public:
 		// Grayscale pass:
 		graphics.begin();
 		{
-			graphics.setViewport(0, 0, 640, 480);
+			graphics.setViewport(0, 0, width, height);
 			graphics.bindDefaultFramebuffer();
 			graphics.clear();
 
