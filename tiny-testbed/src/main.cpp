@@ -43,6 +43,22 @@ public:
 			graphics.setBufferData(vbo, descriptor, data.data());
 		}
 
+		// Offset VBO:
+		{
+			std::vector<float> data = {
+				0.f,  0.f,
+				1.5f, 0.f
+			};
+
+			BufferDescriptor descriptor;
+			descriptor.type = BufferType::ARRAY_BUFFER;
+			descriptor.usage = GL_STATIC_DRAW;
+			descriptor.size = sizeof(float) * data.size();
+
+			offsetVBO = graphics.createBuffer(descriptor);
+			graphics.setBufferData(offsetVBO, descriptor, data.data());
+		}
+
 		// EBO:
 		{
 			std::vector<unsigned int> data = {
@@ -83,8 +99,9 @@ public:
 		{
 			PipelineDescriptor pipelineDesc;
 
-			pipelineDesc.vertexLayout.add(VertexLayout::Element{ 0, 3, DataType::FLOAT });
-			pipelineDesc.vertexLayout.add(VertexLayout::Element{ 1, 2, DataType::FLOAT });
+			pipelineDesc.vertexLayout.add(VertexLayout::Element{ 0, 0, 3, DataType::FLOAT });
+			pipelineDesc.vertexLayout.add(VertexLayout::Element{ 0, 1, 2, DataType::FLOAT });
+			pipelineDesc.vertexLayout.add(VertexLayout::Element{ 1, 2, 2, DataType::FLOAT, InputRate::PER_INSTANCE });
 			pipelineDesc.shaderHandles.push_back(vertex);
 			pipelineDesc.shaderHandles.push_back(fragment);
 
@@ -95,8 +112,8 @@ public:
 		{
 			PipelineDescriptor pipelineDesc;
 
-			pipelineDesc.vertexLayout.add(VertexLayout::Element{ 0, 2, DataType::FLOAT });
-			pipelineDesc.vertexLayout.add(VertexLayout::Element{ 1, 2, DataType::FLOAT });
+			pipelineDesc.vertexLayout.add(VertexLayout::Element{ 0, 0, 2, DataType::FLOAT });
+			pipelineDesc.vertexLayout.add(VertexLayout::Element{ 0, 1, 2, DataType::FLOAT });
 
 			pipelineDesc.shaderHandles.push_back(invertVertex);
 			pipelineDesc.shaderHandles.push_back(invertFragment);
@@ -108,8 +125,8 @@ public:
 		{
 			PipelineDescriptor pipelineDesc;
 
-			pipelineDesc.vertexLayout.add(VertexLayout::Element{ 0, 2, DataType::FLOAT });
-			pipelineDesc.vertexLayout.add(VertexLayout::Element{ 1, 2, DataType::FLOAT });
+			pipelineDesc.vertexLayout.add(VertexLayout::Element{ 0, 0, 2, DataType::FLOAT });
+			pipelineDesc.vertexLayout.add(VertexLayout::Element{ 0, 1, 2, DataType::FLOAT });
 			pipelineDesc.shaderHandles.push_back(grayscaleVertex);
 			pipelineDesc.shaderHandles.push_back(grayscaleFragment);
 
@@ -143,24 +160,21 @@ public:
 		projection = glm::ortho(0.f, 640.f, 480.f, 0.f, -1.f, 1.f);
 
 		// Color pass:
+		graphics.begin();
 		{
 			graphics.setViewport(0, 0, 640, 480);
 			graphics.bindDefaultFramebuffer();
 			graphics.clear();
 
+			// the order of binding matters.
 			graphics.bindBuffer(vbo, BufferType::ARRAY_BUFFER);
+			graphics.bindBuffer(offsetVBO, BufferType::ARRAY_BUFFER);
 			graphics.bindBuffer(ebo, BufferType::ELEMENT_ARRAY_BUFFER);
 
 			{
 				graphics.bindPipeline(colorPipeline);
 
-				// Uniform Instancing:
-				glm::vec2 translations[2];
-				translations[0] = { 0.f, 0.f };
-				translations[1] = { 1.5f, 0.0f };
-				for (size_t i = 0; i < 2; ++i)
-					graphics.setUniform("offsets[" + std::to_string(i) + "]", translations[i]);
-
+				// Array Instancing:
 				graphics.setUniform("u_texture", 0);
 				graphics.setUniform("u_model", model);
 				graphics.setUniform("u_view", view);
@@ -171,7 +185,7 @@ public:
 				graphics.drawElementsInstanced(6, 2);
 			}
 		}
-
+		graphics.end();
 
 		return;
 
@@ -219,7 +233,11 @@ private:
 
 private:
 	framebuffer_handle fbo = invalid_handle;
-	buffer_handle vbo = invalid_handle, ebo = invalid_handle, screenVBO = invalid_handle;
+	buffer_handle 
+		vbo			= invalid_handle,
+		offsetVBO	= invalid_handle,
+		ebo			= invalid_handle, 
+		screenVBO	= invalid_handle;
 	
 	pipeline_handle colorPipeline = invalid_handle;
 	pipeline_handle invertPipeline = invalid_handle;

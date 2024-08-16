@@ -19,6 +19,7 @@
 namespace tiny
 {
 	// TODO: uniform name caching
+	// TODO: support for other buffer types in bindings?
 
 	struct GraphicsLayer
 	{
@@ -50,6 +51,14 @@ namespace tiny
 			glClear(GL_COLOR_BUFFER_BIT);
 		}
 
+		// TODO: recording should be done on a command buffer.
+		// - maybe use vaos per pipeline and set it up beforehand
+		void begin()
+		{
+			m_RecordingEnabled = true;
+			m_BufferBindings.clear();
+		}
+
 		void draw(uint32_t first, uint32_t count)
 		{
 			auto descriptor = m_PipelineStates[m_BoundPipeline];
@@ -75,6 +84,11 @@ namespace tiny
 				nullptr, 
 				instanceCount
 			);
+		}
+
+		void end()
+		{
+			m_RecordingEnabled = false;
 		}
 
 	public:
@@ -123,6 +137,7 @@ namespace tiny
 			m_BoundPipeline = handle;
 
 			glUseProgram(m_Pipelines[handle]);
+
 			setupPipelineState(handle);
 		}
 
@@ -175,6 +190,9 @@ namespace tiny
 		}
 		void bindBuffer(buffer_handle handle, BufferType type)
 		{
+			if (m_RecordingEnabled && type == BufferType::ARRAY_BUFFER)
+				m_BufferBindings.push_back(m_Buffers[handle]);
+
 			glBindBuffer(getBufferTypeGL(type), m_Buffers[handle]);
 		}
 		void setBufferData(buffer_handle handle, BufferDescriptor descriptor, void* data)
@@ -295,27 +313,44 @@ namespace tiny
 			auto descriptor = m_PipelineStates[handle];
 
 			// Vertex Layout:
-			size_t offset = 0, stride = 0;
+			size_t biggestBinding = 0;
+			{
+				// Fetching the biggest binding:
+				for (const auto& element : descriptor.vertexLayout.elements)
+				{
+					if (element.binding > biggestBinding)
+						biggestBinding = element.binding;
+				}
+			}
+			
+			// assuming the user is not stupid, he'll write bindings starting at zero and counting up
+			// TODO: account for user stupidity.
+			std::vector<size_t> offsets(biggestBinding + 1, 0), strides(biggestBinding + 1, 0);
+			{
+				for (const auto& element : descriptor.vertexLayout.elements)
+					strides[element.binding] += element.dataAmount * getDataTypeSize(element.dataType);
+			}
 
-			for (const auto& element : descriptor.vertexLayout.elements)
-				stride += element.dataAmount * getDataTypeSize(element.dataType);
-
+			uint32_t boundBuffer = invalid_handle;
 			for(const auto& element : descriptor.vertexLayout.elements)
 			{
 				glEnableVertexAttribArray(element.location);
+
+				glBindBuffer(getBufferTypeGL(BufferType::ARRAY_BUFFER), m_BufferBindings[element.binding]);
+
 				glVertexAttribPointer(
 					element.location,
 					element.dataAmount,
 					getDataTypeGL(element.dataType),
 					false,
-					stride,
-					(void*)offset);
+					strides[element.binding],
+					(void*)offsets[element.binding]
+				);
 
-				offset += element.dataAmount * getDataTypeSize(element.dataType);
+				uint32_t divisor = element.inputRate == InputRate::PER_INSTANCE ? 1 : 0;
+				glVertexAttribDivisor(element.location, divisor);
 
-				glVertexAttribDivisor(element.location, 0);
-				if (element.inputRate == InputRate::PER_INSTANCE)
-					glVertexAttribDivisor(element.location, 1);
+				offsets[element.binding] += element.dataAmount * getDataTypeSize(element.dataType);
 			}
 
 			// Rasterizer:
@@ -326,6 +361,7 @@ namespace tiny
 
 	private:
 		std::vector<uint32_t> m_Shaders;
+		
 		std::vector<uint32_t> m_Buffers;
 
 		std::vector<uint32_t> m_Pipelines;
@@ -335,6 +371,10 @@ namespace tiny
 		std::vector<uint32_t> m_Framebuffers;
 		
 		std::vector<uint32_t> m_Renderpass;
+		
+	private:
+		bool m_RecordingEnabled = false;
+		std::vector<uint32_t> m_BufferBindings;
 
 	private:
 		pipeline_handle m_BoundPipeline = invalid_handle;

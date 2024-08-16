@@ -130,6 +130,7 @@ namespace tiny
 	public:
 		struct Element
 		{
+			uint32_t binding;
 			uint32_t location;
 			uint32_t dataAmount;
 			DataType dataType;
