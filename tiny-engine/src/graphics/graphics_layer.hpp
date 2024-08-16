@@ -277,6 +277,10 @@ namespace tiny
 			m_Framebuffers.push_back(framebuffer);
 			return framebuffer_handle(m_Framebuffers.size() - 1);
 		}
+		uint32_t getFramebufferID(framebuffer_handle handle) const
+		{
+			return m_Framebuffers[handle];
+		}
 		void attachFramebufferDepthStencil(framebuffer_handle handle)
 		{
 			bindFramebuffer(handle);

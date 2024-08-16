@@ -1,9 +1,11 @@
 #pragma once
+#include "core/gui.hpp"
 #include "core/view.hpp"
 #include "core/logger.hpp"
 #include "core/worker_pool.hpp"
 #include "core/window_module.hpp"
 #include "core/assets/asset_library.hpp"
+
 
 namespace tiny
 {
@@ -16,6 +18,8 @@ namespace tiny
 
 			setupWindowing(m_WindowModule, properties);
 			m_WindowModule.setEventCallback(BIND(&TinyApplication::onEvent, this));
+
+			initializeGUI(m_WindowModule.getHandle());
 		}
 
 		~TinyApplication()
@@ -71,8 +75,12 @@ namespace tiny
 
 		void onRenderGUI()
 		{
+			startFrameGUI();
+
 			for (const auto& view : m_ViewSystem)
 				view->onRenderGUI();
+
+			endFrameGUI(m_WindowModule.getHandle());
 		}
 
 		void onUpdate(double deltaTime)

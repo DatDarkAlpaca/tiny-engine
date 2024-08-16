@@ -152,6 +152,29 @@ public:
 		graphics.attachFramebufferDepthStencil(fbo);
 	}
 
+	void onRenderGUI() override
+	{
+		int width, height;
+		glfwGetWindowSize(application->getWindowModule().getHandle(), &width, &height);
+
+		graphics.bindDefaultFramebuffer();
+		graphics.setViewport(0, 0, width, height);
+
+		ImGui::DockSpaceOverViewport(ImGuiDockNodeFlags_PassthruCentralNode, ImGui::GetMainViewport());
+	
+		// Main Scene:
+		{
+			ImGui::Begin("Main Scene");
+
+			glm::vec2 pos = { 0.f, 0.f };
+			ImGui::Image((void*)(graphics.getFramebufferID(fbo)), ImVec2(300, 300));
+
+			ImGui::End();
+
+			graphics.clear();
+		}
+	}
+
 	void onRender() override
 	{
 		glm::mat4 model(1.0f);
@@ -178,7 +201,7 @@ public:
 		graphics.begin();
 		{
 			graphics.setViewport(0, 0, width, height);
-			graphics.bindDefaultFramebuffer();
+			graphics.bindFramebuffer(fbo);
 			graphics.clear();
 
 			// the order of binding matters.
@@ -199,50 +222,6 @@ public:
 
 				graphics.drawElementsInstanced(6, 9);
 			}
-		}
-		graphics.end();
-		
-		return;
-
-		// Invert pass:
-		graphics.begin();
-		{
-			graphics.setViewport(0, 0, 640, 480);
-			graphics.bindDefaultFramebuffer();
-			graphics.clear();
-
-			graphics.bindBuffer(screenVBO, BufferType::ARRAY_BUFFER);
-
-			{
-				graphics.bindPipeline(invertPipeline);
-
-				graphics.setUniform("u_texture_screen", 0);
-
-				graphics.bindTexture2D(fboTexture);
-
-				graphics.draw(0, 6);
-			}
-		}
-		graphics.end();
-
-		// Grayscale pass:
-		graphics.begin();
-		{
-			graphics.setViewport(0, 0, width, height);
-			graphics.bindDefaultFramebuffer();
-			graphics.clear();
-
-			graphics.bindBuffer(screenVBO, BufferType::ARRAY_BUFFER);
-
-			{
-				graphics.bindPipeline(grayscalePipeline);
-
-				graphics.setUniform("u_texture_screen", 0);
-
-				graphics.bindTexture2D(fboTexture);
-
-				graphics.draw(0, 6);
-			}		
 		}
 		graphics.end();
 	}
