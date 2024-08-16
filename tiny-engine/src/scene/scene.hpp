@@ -29,6 +29,8 @@ namespace tiny
 	public:
 		inline uint32_t entityCount() const { return m_Diagnostics.entityCount; }
 
+		inline entt::registry& registry() { return m_Registry; }
+
 	private:
 		entt::registry m_Registry;
 		std::unordered_map<UUID, Entity> m_EntityMap;

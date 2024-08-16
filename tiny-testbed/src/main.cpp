@@ -3,6 +3,8 @@
 
 using namespace tiny;
 
+// TODO: scene framebuffer resizing
+
 class MainGame : public View
 {
 public:
@@ -11,145 +13,26 @@ public:
 public:
 	void onEngineStartup() override
 	{
+		initializeScene();
 
+		initializeCamera();
+
+		spriteRenderer.initialize(&graphics);
+	}
+
+	void onRender() override
+	{
 		int width, height;
 		glfwGetWindowSize(application->getWindowModule().getHandle(), &width, &height);
 
-		// Asset:
-		TextureAsset asset = TextureLoader::load("res/box.png");
-		AssetHandle handle = assetLibrary().insertTexture(asset);
+		m_Camera.updateView();
+		m_Camera.updateProjection(0.f, static_cast<float>(width), static_cast<float>(height), 0.f, -10.f, 10.f);
 
-		// Graphics:
-		auto vertex = graphics.createShader({ "res/shader.vert", ShaderType::VERTEX });
-		auto fragment = graphics.createShader({ "res/shader.frag", ShaderType::FRAGMENT });
-
-		auto invertVertex = graphics.createShader({ "res/invert.vert", ShaderType::VERTEX });
-		auto invertFragment = graphics.createShader({ "res/invert.frag", ShaderType::FRAGMENT });
-
-		auto grayscaleVertex = graphics.createShader({ "res/grayscale.vert", ShaderType::VERTEX });
-		auto grayscaleFragment = graphics.createShader({ "res/grayscale.frag", ShaderType::FRAGMENT });
-
-		// VBO:
-		{
-			std::vector<float> data = {
-				-0.5f, -0.5f, 0.0f,		0.0f, 0.0f,
-				 0.5f, -0.5f, 0.0f,		1.0f, 0.0f,
-				 0.5f,  0.5f, 0.0f,		1.0f, 1.0f,
-				-0.5f,  0.5f, 0.0f,		0.0f, 1.0f,
-			};
-
-			BufferDescriptor descriptor;
-			descriptor.type  = BufferType::ARRAY_BUFFER;
-			descriptor.usage = GL_STATIC_DRAW;
-			descriptor.size = sizeof(float) * data.size();
-
-			vbo = graphics.createBuffer(descriptor);
-			graphics.setBufferData(vbo, descriptor, data.data());
-		}
-
-		// Offset VBO:
-		{
-			std::vector<float> data = {
-				0.0f, 0.0f,
-				1.0f, 0.0f,
-				1.0f, 1.0f,
-				0.0f, 1.0f,
-				2.0f, 0.0f,
-				2.0f, 1.0f,
-				0.0f, 2.0f,
-				1.0f, 2.0f,
-				2.0f, 2.0f,
-			};
-
-			BufferDescriptor descriptor;
-			descriptor.type = BufferType::ARRAY_BUFFER;
-			descriptor.usage = GL_STATIC_DRAW;
-			descriptor.size = sizeof(float) * data.size();
-
-			offsetVBO = graphics.createBuffer(descriptor);
-			graphics.setBufferData(offsetVBO, descriptor, data.data());
-		}
-
-		// EBO:
-		{
-			std::vector<unsigned int> data = {
-				0, 1, 2, 2, 3, 0
-			};
-
-			BufferDescriptor descriptor;
-			descriptor.type = BufferType::ELEMENT_ARRAY_BUFFER;
-			descriptor.usage = GL_STATIC_DRAW;
-			descriptor.size = sizeof(unsigned int) * data.size();
-
-			ebo = graphics.createBuffer(descriptor);
-			graphics.setBufferData(ebo, descriptor, data.data());
-		}
-
-		// Screen VBO:
-		{
-			std::vector<float> data = {
-				-1.0f, -1.0f, 0.0f, 0.0f,
-				 1.0f, -1.0f, 1.0f, 0.0f,
-				 1.0f,  1.0f, 1.0f, 1.0f,
-
-				 1.0f,  1.0f, 1.0f, 1.0f,
-				-1.0f,  1.0f, 0.0f, 1.0f,
-				-1.0f, -1.0f, 0.0f, 0.0f,
-			};
-
-			BufferDescriptor descriptor;
-			descriptor.type = BufferType::ARRAY_BUFFER;
-			descriptor.usage = GL_STATIC_DRAW;
-			descriptor.size = sizeof(float) * data.size();
-
-			screenVBO = graphics.createBuffer(descriptor);
-			graphics.setBufferData(screenVBO, descriptor, data.data());
-		}
-
-		// Default Pipeline:
-		{
-			PipelineDescriptor pipelineDesc;
-
-			pipelineDesc.vertexLayout.add(VertexLayout::Element{ 0, 0, 3, DataType::FLOAT });
-			pipelineDesc.vertexLayout.add(VertexLayout::Element{ 0, 1, 2, DataType::FLOAT });
-			pipelineDesc.vertexLayout.add(VertexLayout::Element{ 1, 2, 2, DataType::FLOAT, InputRate::PER_INSTANCE });
-			pipelineDesc.shaderHandles.push_back(vertex);
-			pipelineDesc.shaderHandles.push_back(fragment);
-
-			colorPipeline = graphics.createPipeline(pipelineDesc);
-		}
-
-		// Invert Pipeline:
-		{
-			PipelineDescriptor pipelineDesc;
-
-			pipelineDesc.vertexLayout.add(VertexLayout::Element{ 0, 0, 2, DataType::FLOAT });
-			pipelineDesc.vertexLayout.add(VertexLayout::Element{ 0, 1, 2, DataType::FLOAT });
-
-			pipelineDesc.shaderHandles.push_back(invertVertex);
-			pipelineDesc.shaderHandles.push_back(invertFragment);
-
-			invertPipeline = graphics.createPipeline(pipelineDesc);
-		}
-
-		// Grayscale Pipeline:
-		{
-			PipelineDescriptor pipelineDesc;
-
-			pipelineDesc.vertexLayout.add(VertexLayout::Element{ 0, 0, 2, DataType::FLOAT });
-			pipelineDesc.vertexLayout.add(VertexLayout::Element{ 0, 1, 2, DataType::FLOAT });
-			pipelineDesc.shaderHandles.push_back(grayscaleVertex);
-			pipelineDesc.shaderHandles.push_back(grayscaleFragment);
-
-			grayscalePipeline = graphics.createPipeline(pipelineDesc);
-		}
+		spriteRenderer.setViewport(0, 0, width, height);
 		
-		texture = graphics.createTexture2DByte(application->getAssetLibrary(), handle, {});
+		spriteRenderer.setRenderTarget(m_SceneFramebuffer);
 
-		fboTexture = graphics.createTexture2DByteNull(width, height);
-		fbo = graphics.createFramebuffer();
-		graphics.attachFramebufferColorTexture(fbo, fboTexture, 0);
-		graphics.attachFramebufferDepthStencil(fbo);
+		spriteRenderer.render(m_Scene, &m_Camera);
 	}
 
 	void onRenderGUI() override
@@ -161,13 +44,18 @@ public:
 		graphics.setViewport(0, 0, width, height);
 
 		ImGui::DockSpaceOverViewport(ImGuiDockNodeFlags_PassthruCentralNode, ImGui::GetMainViewport());
-	
+
 		// Main Scene:
 		{
 			ImGui::Begin("Main Scene");
 
 			glm::vec2 pos = { 0.f, 0.f };
-			ImGui::Image((void*)(graphics.getFramebufferID(fbo)), ImVec2(300, 300));
+			ImGui::Image(
+				(void*)(graphics.getTextureID(m_SceneFramebufferTexture)), 
+				ImGui::GetContentRegionAvail(),
+				ImVec2(0, 1), 
+				ImVec2(1, 0)
+			);
 
 			ImGui::End();
 
@@ -175,73 +63,54 @@ public:
 		}
 	}
 
-	void onRender() override
+private:
+	void initializeScene()
 	{
-		glm::mat4 model(1.0f);
-		size_t scale = 60;
-		model = glm::translate(model, glm::vec3(scale / 2.f, scale / 2.f, 0.f));
-		model = glm::scale(model, glm::vec3(scale, scale, 1.f));
-
-		glm::vec3 position = glm::vec3(0.f, 0.f, 0.f);
-		glm::vec3 target = glm::vec3(0.f, 0.f, -1.f);
-		glm::mat4 view(1.0f);
-		view = glm::lookAt(
-			position,
-			position + target,
-			glm::vec3(0.f, 1.f,  0.f)
-		);
-
 		int width, height;
 		glfwGetWindowSize(application->getWindowModule().getHandle(), &width, &height);
 
-		glm::mat4 projection(1.0f);
-		projection = glm::ortho(0.f, float(width), float(height), 0.f, -10.f, 10.f);
+		// Box Grid:
+		TextureAsset asset = TextureLoader::load("res/box.png");
+		AssetHandle boxGridHandle = assetLibrary().insertTexture(asset);
 
-		// Color pass:
-		graphics.begin();
+		texture_handle texture = graphics.createTexture2DByte(application->getAssetLibrary(), boxGridHandle, {});
+		
+		size_t scale = 60;
+		for (size_t x = 0; x < 2; ++x)
 		{
-			graphics.setViewport(0, 0, width, height);
-			graphics.bindFramebuffer(fbo);
-			graphics.clear();
+			glm::mat4 transform(1.0f);
+			transform = glm::translate(transform, glm::vec3(scale + x * 2 * scale, scale, 0.f));
+			transform = glm::scale(transform, glm::vec3(scale, scale, 1.f));
 
-			// the order of binding matters.
-			graphics.bindBuffer(vbo, BufferType::ARRAY_BUFFER);
-			graphics.bindBuffer(offsetVBO, BufferType::ARRAY_BUFFER);
-			graphics.bindBuffer(ebo, BufferType::ELEMENT_ARRAY_BUFFER);
-
-			{
-				graphics.bindPipeline(colorPipeline);
-
-				// Array Instancing:
-				graphics.setUniform("u_texture", 0);
-				graphics.setUniform("u_model", model);
-				graphics.setUniform("u_view", view);
-				graphics.setUniform("u_projection", projection);
-
-				graphics.bindTexture2D(texture);
-
-				graphics.drawElementsInstanced(6, 9);
-			}
+			auto box = m_Scene.addEntity();
+			box.AddComponent<TransformComponent>(transform);
+			box.AddComponent<SpriteComponent>(texture);
 		}
-		graphics.end();
+
+		// Framebuffer:
+		{
+			m_SceneFramebufferTexture = graphics.createTexture2DByteNull(width, height);
+			m_SceneFramebuffer = graphics.createFramebuffer();
+			graphics.attachFramebufferColorTexture(m_SceneFramebuffer, m_SceneFramebufferTexture);
+			graphics.attachFramebufferDepthStencil(m_SceneFramebuffer);
+		}
+	}
+
+	void initializeCamera()
+	{
+		m_Camera.position = glm::vec3(0.f);
+		m_Camera.target   = glm::vec3(0.f, 0.f, -1.f);
 	}
 
 private:
+	ImmediateSpriteRenderer spriteRenderer;
+	OrthographicCamera m_Camera;
 	GraphicsLayer graphics;
+	Scene m_Scene;
 
 private:
-	framebuffer_handle fbo = invalid_handle;
-	buffer_handle 
-		vbo			= invalid_handle,
-		offsetVBO	= invalid_handle,
-		ebo			= invalid_handle, 
-		screenVBO	= invalid_handle;
-	
-	pipeline_handle colorPipeline = invalid_handle;
-	pipeline_handle invertPipeline = invalid_handle;
-	pipeline_handle grayscalePipeline = invalid_handle;
-
-	texture_handle texture = invalid_handle, fboTexture = invalid_handle;
+	framebuffer_handle m_SceneFramebuffer = invalid_handle;
+	texture_handle m_SceneFramebufferTexture = invalid_handle;
 };
 
 class Testbed : public TinyApplication

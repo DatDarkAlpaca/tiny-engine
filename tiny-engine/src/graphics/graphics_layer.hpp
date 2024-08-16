@@ -178,7 +178,6 @@ namespace tiny
 			glGenBuffers(1, &buffer);
 			glBindBuffer(getBufferTypeGL(descriptor.type), buffer);
 			glBufferData(getBufferTypeGL(descriptor.type), descriptor.size, nullptr, descriptor.usage);
-
 			glBindBuffer(getBufferTypeGL(descriptor.type), 0);
 
 			m_Buffers.push_back(buffer);
@@ -260,20 +259,23 @@ namespace tiny
 			glBindTexture(GL_TEXTURE_2D, 0);
 
 			m_Texture.push_back(textureID);
-			return m_Texture.size() - 1;
+			return texture_handle(m_Texture.size() - 1);
 		}
 		void bindTexture2D(texture_handle handle, uint32_t unit = 0)
 		{
 			glActiveTexture(GL_TEXTURE0 + unit);
 			glBindTexture(GL_TEXTURE_2D, m_Texture[handle]);
 		}
+		uint32_t getTextureID(texture_handle handle)
+		{
+			return m_Texture[handle];
+		}
 
 		framebuffer_handle createFramebuffer()
 		{
 			uint32_t framebuffer;
 			glGenFramebuffers(1, &framebuffer);
-			glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
-
+			
 			m_Framebuffers.push_back(framebuffer);
 			return framebuffer_handle(m_Framebuffers.size() - 1);
 		}
@@ -290,17 +292,22 @@ namespace tiny
 			glBindRenderbuffer(GL_RENDERBUFFER, rbo);
 			glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, 800, 600);
 			glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, rbo);
+
+			bindDefaultFramebuffer();
 		}
 		void attachFramebufferColorTexture(framebuffer_handle handle, texture_handle textureHandle, uint32_t attachmentID = 0)
 		{
 			bindFramebuffer(handle);
+			
 			glFramebufferTexture2D(
 				GL_FRAMEBUFFER, 
 				GL_COLOR_ATTACHMENT0 + attachmentID, 
 				GL_TEXTURE_2D, 
-				m_Texture[textureHandle], 
+				m_Texture[textureHandle],
 				0
 			);
+
+			bindDefaultFramebuffer();
 		}
 		void bindFramebuffer(framebuffer_handle handle)
 		{
