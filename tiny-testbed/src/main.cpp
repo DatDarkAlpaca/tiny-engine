@@ -163,7 +163,7 @@ public:
 		graphics.begin();
 		{
 			graphics.setViewport(0, 0, 640, 480);
-			graphics.bindDefaultFramebuffer();
+			graphics.bindFramebuffer(fbo);
 			graphics.clear();
 
 			// the order of binding matters.
@@ -187,9 +187,8 @@ public:
 		}
 		graphics.end();
 
-		return;
-
 		// Invert pass:
+		graphics.begin();
 		{
 			graphics.setViewport(0, 0, 640, 480);
 			graphics.bindDefaultFramebuffer();
@@ -207,8 +206,10 @@ public:
 				graphics.draw(0, 6);
 			}
 		}
+		graphics.end();
 
 		// Grayscale pass:
+		graphics.begin();
 		{
 			graphics.setViewport(0, 0, 640, 480);
 			graphics.bindDefaultFramebuffer();
@@ -226,6 +227,7 @@ public:
 				graphics.draw(0, 6);
 			}		
 		}
+		graphics.end();
 	}
 
 private:
