@@ -3,6 +3,7 @@
 #include <filesystem>
 #include <vector>
 #include <glm/glm.hpp>
+#include <glm/gtc/type_ptr.hpp>
 
 #include "core/assets/asset_library.hpp"
 #include "graphics.hpp"
@@ -17,6 +18,8 @@
 
 namespace tiny
 {
+	// TODO: uniform name caching
+
 	struct GraphicsLayer
 	{
 	public:
@@ -56,6 +59,22 @@ namespace tiny
 		{
 			auto descriptor = m_PipelineStates[m_BoundPipeline];
 			glDrawElements(getTopologyGL(descriptor.primitiveTopology), count, GL_UNSIGNED_INT, nullptr);
+		}
+		void drawInstanced(uint32_t first, uint32_t count, uint32_t instanceCount)
+		{
+			auto descriptor = m_PipelineStates[m_BoundPipeline];
+			glDrawArraysInstanced(getTopologyGL(descriptor.primitiveTopology), first, count, instanceCount);
+		}
+		void drawElementsInstanced(uint32_t count, uint32_t instanceCount)
+		{
+			auto descriptor = m_PipelineStates[m_BoundPipeline];
+			glDrawElementsInstanced(
+				getTopologyGL(descriptor.primitiveTopology), 
+				count, 
+				GL_UNSIGNED_INT, 
+				nullptr, 
+				instanceCount
+			);
 		}
 
 	public:
@@ -117,7 +136,22 @@ namespace tiny
 			auto location = glGetUniformLocation(m_Pipelines[m_BoundPipeline], uniformName.data());
 			glUniform1i(location, value);
 		}
-		void setUniform(std::string_view uniformName, const glm::mat4 value)
+		void setUniform(std::string_view uniformName, const glm::vec2& value)
+		{
+			auto location = glGetUniformLocation(m_Pipelines[m_BoundPipeline], uniformName.data());
+			glUniform2f(location, value.x, value.y);
+		}
+		void setUniform(std::string_view uniformName, const glm::vec3& value)
+		{
+			auto location = glGetUniformLocation(m_Pipelines[m_BoundPipeline], uniformName.data());
+			glUniform3f(location, value.x, value.y, value.z);
+		}
+		void setUniform(std::string_view uniformName, const glm::vec4& value)
+		{
+			auto location = glGetUniformLocation(m_Pipelines[m_BoundPipeline], uniformName.data());
+			glUniform4f(location, value.x, value.y, value.z, value.w);
+		}
+		void setUniform(std::string_view uniformName, const glm::mat4& value)
 		{
 			auto location = glGetUniformLocation(m_Pipelines[m_BoundPipeline], uniformName.data());
 			glUniformMatrix4fv(location, 1, false, glm::value_ptr(value));
@@ -278,6 +312,10 @@ namespace tiny
 					(void*)offset);
 
 				offset += element.dataAmount * getDataTypeSize(element.dataType);
+
+				glVertexAttribDivisor(element.location, 0);
+				if (element.inputRate == InputRate::PER_INSTANCE)
+					glVertexAttribDivisor(element.location, 1);
 			}
 
 			// Rasterizer:

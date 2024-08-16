@@ -119,6 +119,12 @@ namespace tiny
 	}
 
 	// Vertex Layout:
+	enum class InputRate
+	{
+		PER_VERTEX,
+		PER_INSTANCE
+	};
+
 	struct VertexLayout
 	{
 	public:
@@ -127,6 +133,7 @@ namespace tiny
 			uint32_t location;
 			uint32_t dataAmount;
 			DataType dataType;
+			InputRate inputRate = InputRate::PER_VERTEX;
 		};
 
 		Element& add(const Element& element)

@@ -97,13 +97,14 @@ public:
 
 			pipelineDesc.vertexLayout.add(VertexLayout::Element{ 0, 2, DataType::FLOAT });
 			pipelineDesc.vertexLayout.add(VertexLayout::Element{ 1, 2, DataType::FLOAT });
+
 			pipelineDesc.shaderHandles.push_back(invertVertex);
 			pipelineDesc.shaderHandles.push_back(invertFragment);
 
 			invertPipeline = graphics.createPipeline(pipelineDesc);
 		}
 
-		// Invert Pipeline:
+		// Grayscale Pipeline:
 		{
 			PipelineDescriptor pipelineDesc;
 
@@ -144,7 +145,7 @@ public:
 		// Color pass:
 		{
 			graphics.setViewport(0, 0, 640, 480);
-			graphics.bindFramebuffer(fbo);
+			graphics.bindDefaultFramebuffer();
 			graphics.clear();
 
 			graphics.bindBuffer(vbo, BufferType::ARRAY_BUFFER);
@@ -153,6 +154,13 @@ public:
 			{
 				graphics.bindPipeline(colorPipeline);
 
+				// Uniform Instancing:
+				glm::vec2 translations[2];
+				translations[0] = { 0.f, 0.f };
+				translations[1] = { 1.5f, 0.0f };
+				for (size_t i = 0; i < 2; ++i)
+					graphics.setUniform("offsets[" + std::to_string(i) + "]", translations[i]);
+
 				graphics.setUniform("u_texture", 0);
 				graphics.setUniform("u_model", model);
 				graphics.setUniform("u_view", view);
@@ -160,9 +168,12 @@ public:
 
 				graphics.bindTexture2D(texture);
 
-				graphics.drawElements(6);
+				graphics.drawElementsInstanced(6, 2);
 			}
 		}
+
+
+		return;
 
 		// Invert pass:
 		{
@@ -204,17 +215,17 @@ public:
 	}
 
 private:
-	Scene m_Scene;
-
-private:
 	GraphicsLayer graphics;
 
-	framebuffer_handle fbo;
-	buffer_handle vbo, ebo, screenVBO;
+private:
+	framebuffer_handle fbo = invalid_handle;
+	buffer_handle vbo = invalid_handle, ebo = invalid_handle, screenVBO = invalid_handle;
 	
-	pipeline_handle colorPipeline, invertPipeline, grayscalePipeline;
+	pipeline_handle colorPipeline = invalid_handle;
+	pipeline_handle invertPipeline = invalid_handle;
+	pipeline_handle grayscalePipeline = invalid_handle;
 
-	texture_handle texture, fboTexture;
+	texture_handle texture = invalid_handle, fboTexture = invalid_handle;
 };
 
 class Testbed : public TinyApplication
