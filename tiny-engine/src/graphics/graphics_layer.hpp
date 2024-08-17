@@ -6,6 +6,8 @@
 #include <glm/gtc/type_ptr.hpp>
 
 #include "core/assets/asset_library.hpp"
+#include "core/handle_array.hpp"
+
 #include "graphics.hpp"
 #include "utils/file.hpp"
 
@@ -225,8 +227,14 @@ namespace tiny
 
 			glBindTexture(GL_TEXTURE_2D, 0);
 
-			m_Texture.push_back(textureID);
-			return texture_handle(m_Texture.size() - 1);
+			return m_Textures.add(textureID);
+		}
+		void destroyTexture(texture_handle handle)
+		{
+			const auto& textureID = getTextureID(handle);
+			glDeleteTextures(1, &textureID);
+
+			m_Textures.remove(handle);
 		}
 		texture_handle createTexture2DByte(AssetLibrary& assetLibrary, AssetHandle textureHandle, const TextureDescriptor& descriptor)
 		{
@@ -258,17 +266,16 @@ namespace tiny
 			
 			glBindTexture(GL_TEXTURE_2D, 0);
 
-			m_Texture.push_back(textureID);
-			return texture_handle(m_Texture.size() - 1);
+			return m_Textures.add(textureID);
 		}
 		void bindTexture2D(texture_handle handle, uint32_t unit = 0)
 		{
 			glActiveTexture(GL_TEXTURE0 + unit);
-			glBindTexture(GL_TEXTURE_2D, m_Texture[handle]);
+			glBindTexture(GL_TEXTURE_2D, getTextureID(handle));
 		}
 		uint32_t getTextureID(texture_handle handle)
 		{
-			return m_Texture[handle];
+			return m_Textures.get(handle);
 		}
 
 		framebuffer_handle createFramebuffer()
@@ -276,12 +283,18 @@ namespace tiny
 			uint32_t framebuffer;
 			glGenFramebuffers(1, &framebuffer);
 			
-			m_Framebuffers.push_back(framebuffer);
-			return framebuffer_handle(m_Framebuffers.size() - 1);
+			return m_Framebuffers.add(framebuffer);
+		}
+		void destroyFramebuffer(framebuffer_handle handle)
+		{
+			const auto& framebufferID = getFramebufferID(handle);
+			glDeleteFramebuffers(1, &framebufferID);
+
+			m_Framebuffers.remove(handle);
 		}
 		uint32_t getFramebufferID(framebuffer_handle handle) const
 		{
-			return m_Framebuffers[handle];
+			return m_Framebuffers.get(static_cast<handle_t>(handle));
 		}
 		void attachFramebufferDepthStencil(framebuffer_handle handle)
 		{
@@ -303,7 +316,7 @@ namespace tiny
 				GL_FRAMEBUFFER, 
 				GL_COLOR_ATTACHMENT0 + attachmentID, 
 				GL_TEXTURE_2D, 
-				m_Texture[textureHandle],
+				m_Textures.get(textureHandle),
 				0
 			);
 
@@ -311,7 +324,7 @@ namespace tiny
 		}
 		void bindFramebuffer(framebuffer_handle handle)
 		{
-			glBindFramebuffer(GL_FRAMEBUFFER, m_Framebuffers[handle]);
+			glBindFramebuffer(GL_FRAMEBUFFER, getFramebufferID(handle));
 		}
 		void bindDefaultFramebuffer()
 		{
@@ -378,8 +391,8 @@ namespace tiny
 		std::vector<uint32_t> m_Pipelines;
 		std::vector<PipelineDescriptor> m_PipelineStates;
 
-		std::vector<uint32_t> m_Texture;
-		std::vector<uint32_t> m_Framebuffers;
+		HandleArray<uint32_t, texture_handle> m_Textures;
+		HandleArray<uint32_t, framebuffer_handle> m_Framebuffers;
 		
 		std::vector<uint32_t> m_Renderpass;
 		

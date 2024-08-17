@@ -20,15 +20,22 @@ public:
 		spriteRenderer.initialize(&graphics);
 	}
 
+	void onEvent(Event& event) override
+	{
+		Subscriber subscriber(event);
+		subscriber.subscribe<WindowResizeEvent>([&](const WindowResizeEvent& resizeEvent) {
+			const auto& width = resizeEvent.width;
+			const auto& height = resizeEvent.height;
+			
+			m_Camera.updateProjection(0.0f, width, height, 0.f, -10.f, 10.f);
+
+			return false;
+		});
+	}
+
 	void onRender() override
 	{
-		int width, height;
-		glfwGetWindowSize(application->getWindowModule().getHandle(), &width, &height);
-
 		m_Camera.updateView();
-		m_Camera.updateProjection(0.f, static_cast<float>(width), static_cast<float>(height), 0.f, -10.f, 10.f);
-
-		spriteRenderer.setViewport(0, 0, width, height);
 		
 		spriteRenderer.setRenderTarget(m_SceneFramebuffer);
 
@@ -37,16 +44,13 @@ public:
 
 	void onRenderGUI() override
 	{
-		int width, height;
-		glfwGetWindowSize(application->getWindowModule().getHandle(), &width, &height);
-
-		graphics.bindDefaultFramebuffer();
-		graphics.setViewport(0, 0, width, height);
-
-		ImGui::DockSpaceOverViewport(ImGuiDockNodeFlags_PassthruCentralNode, ImGui::GetMainViewport());
+		m_SceneDimensions.x = ImGui::GetContentRegionAvail().x;
+		m_SceneDimensions.y = ImGui::GetContentRegionAvail().y;
 
 		// Main Scene:
+		graphics.bindDefaultFramebuffer();
 		{
+			ImGui::DockSpaceOverViewport(ImGuiDockNodeFlags_PassthruCentralNode, ImGui::GetMainViewport());
 			ImGui::Begin("Main Scene");
 
 			glm::vec2 pos = { 0.f, 0.f };
@@ -87,19 +91,30 @@ private:
 			box.AddComponent<SpriteComponent>(texture);
 		}
 
-		// Framebuffer:
-		{
-			m_SceneFramebufferTexture = graphics.createTexture2DByteNull(width, height);
-			m_SceneFramebuffer = graphics.createFramebuffer();
-			graphics.attachFramebufferColorTexture(m_SceneFramebuffer, m_SceneFramebufferTexture);
-			graphics.attachFramebufferDepthStencil(m_SceneFramebuffer);
-		}
+		createSceneFramebuffer(width, height);
 	}
 
 	void initializeCamera()
 	{
 		m_Camera.position = glm::vec3(0.f);
 		m_Camera.target   = glm::vec3(0.f, 0.f, -1.f);
+	}
+
+	void createSceneFramebuffer(uint32_t width, uint32_t height)
+	{
+		m_SceneDimensions = { width, height };
+
+		if (m_SceneFramebufferTexture != invalid_handle)
+			graphics.destroyTexture(m_SceneFramebufferTexture);
+
+		if (m_SceneFramebuffer != invalid_handle)
+			graphics.destroyFramebuffer(m_SceneFramebuffer);
+
+		m_SceneFramebufferTexture = graphics.createTexture2DByteNull(width, height);
+
+		m_SceneFramebuffer = graphics.createFramebuffer();
+		graphics.attachFramebufferColorTexture(m_SceneFramebuffer, m_SceneFramebufferTexture);
+		graphics.attachFramebufferDepthStencil(m_SceneFramebuffer);
 	}
 
 private:
@@ -111,6 +126,7 @@ private:
 private:
 	framebuffer_handle m_SceneFramebuffer = invalid_handle;
 	texture_handle m_SceneFramebufferTexture = invalid_handle;
+	glm::vec2 m_SceneDimensions = glm::vec2(0.f);
 };
 
 class Testbed : public TinyApplication

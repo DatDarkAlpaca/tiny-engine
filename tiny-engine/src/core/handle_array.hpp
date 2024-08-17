@@ -7,11 +7,11 @@ namespace tiny
 {
 	using handle_t = uint32_t;
 
-	template<typename T>
+	template<typename Type, typename HandleType = handle_t>
 	class HandleArray
 	{
 	public:
-		handle_t add(const T& data)
+		handle_t add(const Type& data)
 		{
 			if (!m_ExistsEmptySlots)
 			{
@@ -29,7 +29,15 @@ namespace tiny
 			return emptyHandle;
 		}
 
-		void remove(handle_t handle)
+		Type get(HandleType handle) const
+		{
+			if (!isValidHandle(handle))
+				TINY_LOG_CRITICAL("Invalid handle");
+
+			return m_Data[handle];
+		}
+
+		void remove(HandleType handle)
 		{
 			m_ExistsEmptySlots = true;
 			m_EmptyData.push_back(handle);
@@ -37,7 +45,7 @@ namespace tiny
 		}
 
 	public:
-		bool isValidHandle(handle_t handle) const
+		bool isValidHandle(HandleType handle) const
 		{
 			for (const auto& emptyHandle : m_EmptyData)
 			{
@@ -49,11 +57,11 @@ namespace tiny
 		}
 
 	public:
-		std::vector<T> data() const { return m_Data; }
+		std::vector<Type> data() const { return m_Data; }
 
 	private:
-		std::vector<T> m_Data;
-		std::deque<handle_t> m_EmptyData;
+		std::vector<Type> m_Data;
+		std::deque<HandleType> m_EmptyData;
 		bool m_ExistsEmptySlots = false;
 	};
 }
