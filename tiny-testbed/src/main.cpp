@@ -20,19 +20,6 @@ public:
 		spriteRenderer.initialize(&graphics);
 	}
 
-	void onEvent(Event& event) override
-	{
-		Subscriber subscriber(event);
-		subscriber.subscribe<WindowResizeEvent>([&](const WindowResizeEvent& resizeEvent) {
-			const auto& width = resizeEvent.width;
-			const auto& height = resizeEvent.height;
-			
-			m_Camera.updateProjection(0.0f, width, height, 0.f, -10.f, 10.f);
-
-			return false;
-		});
-	}
-
 	void onRender() override
 	{
 		m_Camera.updateView();
@@ -44,9 +31,6 @@ public:
 
 	void onRenderGUI() override
 	{
-		m_SceneDimensions.x = ImGui::GetContentRegionAvail().x;
-		m_SceneDimensions.y = ImGui::GetContentRegionAvail().y;
-
 		// Main Scene:
 		graphics.bindDefaultFramebuffer();
 		{
@@ -60,6 +44,9 @@ public:
 				ImVec2(0, 1), 
 				ImVec2(1, 0)
 			);
+
+			auto size = ImGui::GetWindowSize();
+			m_Camera.updateProjection(0.f, float(size.x), float(size.y), 0.f);
 
 			ImGui::End();
 
@@ -92,6 +79,9 @@ private:
 		}
 
 		createSceneFramebuffer(width, height);
+		m_SceneDimensions = { width, height };
+
+		m_Camera.updateProjection(0.0f, m_SceneDimensions.x, m_SceneDimensions.y, 0.f, -10.f, 10.f);
 	}
 
 	void initializeCamera()
